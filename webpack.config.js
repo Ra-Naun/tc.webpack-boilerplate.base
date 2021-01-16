@@ -5,6 +5,8 @@ const CopyPlugin = require('copy-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const OptimizeCssAssetWebpackPlugin = require('optimize-css-assets-webpack-plugin');
 const TerserWebpackPlugin = require('terser-webpack-plugin');
+const OptimizeCSSAssetsPlugin = require('optimize-css-assets-webpack-plugin');
+const webpack = require('webpack');
 
 const isDev = process.env.NODE_ENV === 'development';
 const isProd = !isDev;
@@ -17,13 +19,29 @@ const optimization = () => {
   };
 
   if (isProd) {
-    config.minimizer = [new OptimizeCssAssetWebpackPlugin(), new TerserWebpackPlugin()];
+    config.minimizer = [
+      new OptimizeCssAssetWebpackPlugin(),
+      new TerserWebpackPlugin(),
+      new OptimizeCSSAssetsPlugin({
+        // cssnano configuration
+        cssProcessorPluginOptions: {
+          preset: [
+            'default',
+            {
+              discardComments: {
+                removeAll: true,
+              },
+            },
+          ],
+        },
+      }),
+    ];
   }
 
   return config;
 };
 
-const filename = (ext) => (isDev ? `[name].${ext}` : `[name].[hash].${ext}`);
+const filename = (ext) => (isDev ? `[name].${ext}` : `[name].[fullhash].${ext}`);
 
 const cssLoaders = (extra) => {
   const loaders = [
@@ -35,8 +53,35 @@ const cssLoaders = (extra) => {
         // reloadAll: true,
       },
     },
-    'css-loader',
+    {
+      loader: 'css-loader',
+      options: { importLoaders: 1 },
+    },
+    'postcss-loader',
   ];
+
+  // [
+  //   'style-loader',
+  //   {
+  //     loader: 'css-loader',
+  //     options: { importLoaders: 1 },
+  //   },
+  //   {
+  //     loader: 'postcss-loader',
+  //     options: {
+  //       postcssOptions: {
+  //         plugins: [
+  //           [
+  //             'postcss-preset-env',
+  //             {
+  //               // Options
+  //             },
+  //           ],
+  //         ],
+  //       },
+  //     },
+  //   },
+  // ];
 
   if (extra) {
     loaders.push(extra);
@@ -63,7 +108,7 @@ const jsLoaders = () => {
 const babelOptions = (preset) => {
   const opts = {
     presets: ['@babel/preset-env'],
-    plugins: ['@babel/plugin-proposal-class-properties'],
+    plugins: ['@babel/plugin-proposal-class-properties', '@babel/plugin-proposal-object-rest-spread'],
   };
 
   if (preset) {
@@ -73,12 +118,33 @@ const babelOptions = (preset) => {
   return opts;
 };
 
+const plugins = () => {
+  const base = [
+    new webpack.HotModuleReplacementPlugin(),
+    new HTMLWebpackPlugin({
+      template: './index.html',
+      minify: {
+        collapseWhitespace: isProd,
+      },
+    }),
+    new CleanWebpackPlugin(),
+    new CopyPlugin({
+      patterns: [{ from: path.resolve(__dirname, 'src/favicon.ico'), to: path.resolve(__dirname, 'dist') }],
+    }),
+    new MiniCssExtractPlugin({
+      filename: filename('css'),
+    }),
+  ];
+  //if (isProd) base.push(new BundleAnalyzerPlugin());
+  return base;
+};
+
 module.exports = {
   context: path.resolve(__dirname, 'src'),
   mode: 'development',
   entry: {
     main: ['@babel/polyfill', './index.js'],
-    analytics: './analytics.js',
+    analytics: './analytics.ts',
   },
   output: {
     path: path.join(__dirname, './dist'),
@@ -93,24 +159,15 @@ module.exports = {
   },
   optimization: optimization(),
   devServer: {
+    historyApiFallback: true,
+    contentBase: path.resolve(__dirname, './dist'),
+    open: true,
+    compress: true,
+    hot: true,
     port: 2020,
-    hot: isDev,
   },
-  plugins: [
-    new HTMLWebpackPlugin({
-      template: './index.html',
-      minify: {
-        collapseWhitespace: isProd,
-      },
-    }),
-    new CleanWebpackPlugin(),
-    new CopyPlugin({
-      patterns: [{ from: path.resolve(__dirname, 'src/favicon.ico'), to: path.resolve(__dirname, 'dist') }],
-    }),
-    new MiniCssExtractPlugin({
-      filename: filename('css'),
-    }),
-  ],
+  // devtool: isDev ? 'source-map' : '',
+  plugins: plugins(),
 
   module: {
     rules: [
@@ -118,6 +175,12 @@ module.exports = {
         test: /\.m?js$/,
         exclude: /(node_modules|bower_components)/,
         use: jsLoaders(),
+      },
+      {
+        test: /\.ts$/,
+        exclude: /(node_modules|bower_components)/,
+        loader: 'babel-loader',
+        options: babelOptions('@babel/preset-typescript'),
       },
       {
         test: /\.css$/i,
@@ -131,13 +194,24 @@ module.exports = {
         test: /\.(sass|scss)$/i,
         use: cssLoaders('sass-loader'),
       },
+      // {
+      //   test: /\.(png|jpe?g|svg|gif)$/,
+      //   use: ['file-loader'],
+      // },
+      // изображения
       {
-        test: /\.(png|jpg|svg|gif)$/,
-        use: ['file-loader'],
+        test: /\.(?:ico|gif|png|jpe?g)$/i,
+        type: 'asset/resource',
       },
+
+      // {
+      //   test: /\.(woff(2)?|eot|ttf|otf)$/,
+      //   use: ['file-loader'],
+      // },
+      // шрифты и SVG
       {
-        test: /\.(ttf|woff|woff2|eot)$/,
-        use: ['file-loader'],
+        test: /\.(woff(2)?|eot|ttf|otf|svg|)$/,
+        type: 'asset/inline',
       },
       {
         test: /\.xml$/,

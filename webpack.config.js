@@ -147,7 +147,6 @@ module.exports = {
     analytics: './analytics.ts',
   },
   output: {
-    path: path.join(__dirname, './dist'),
     filename: filename('js'),
     path: path.resolve(__dirname, 'dist'),
   },
@@ -164,7 +163,7 @@ module.exports = {
     open: true,
     compress: true,
     hot: true,
-    port: 2020,
+    port: 2021,
   },
   // devtool: isDev ? 'source-map' : '',
   plugins: plugins(),

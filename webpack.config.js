@@ -60,29 +60,6 @@ const cssLoaders = (extra) => {
     'postcss-loader',
   ];
 
-  // [
-  //   'style-loader',
-  //   {
-  //     loader: 'css-loader',
-  //     options: { importLoaders: 1 },
-  //   },
-  //   {
-  //     loader: 'postcss-loader',
-  //     options: {
-  //       postcssOptions: {
-  //         plugins: [
-  //           [
-  //             'postcss-preset-env',
-  //             {
-  //               // Options
-  //             },
-  //           ],
-  //         ],
-  //       },
-  //     },
-  //   },
-  // ];
-
   if (extra) {
     loaders.push(extra);
   }
@@ -108,7 +85,7 @@ const jsLoaders = () => {
 const babelOptions = (preset) => {
   const opts = {
     presets: ['@babel/preset-env'],
-    plugins: ['@babel/plugin-proposal-class-properties', '@babel/plugin-proposal-object-rest-spread'],
+    plugins: ['@babel/plugin-proposal-class-properties', '@babel/plugin-proposal-object-rest-spread', '@babel/plugin-transform-runtime'],
   };
 
   if (preset) {
@@ -143,7 +120,7 @@ module.exports = {
   context: path.resolve(__dirname, 'src'),
   mode: 'development',
   entry: {
-    main: ['@babel/polyfill', './index.js'],
+    main: ['./index.js'],
     analytics: './analytics.ts',
   },
   output: {
